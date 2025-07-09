@@ -1,321 +1,225 @@
 <?php
 
-/**
- * Core Framework - ContactsEndpoint
- *
- * @license    MIT (https://mit-license.org/)
- * @author     Louis Ouellet <louis@laswitchtech.com>
- */
-
 // Import additionnal class into the global namespace
-use \LaswitchTech\Core\Abstracts\Endpoint;
+use \LaswitchTech\Core\Base\BaseEndpoint;
 
-class ContactsEndpoint extends Endpoint {
+class ContactsEndpoint extends BaseEndpoint {
 
     /**
      * Constructor
      */
     public function __construct()
     {
-
-        // Call Parent Constructor
+        // Call the parent constructor
         parent::__construct();
 
-        // Retrieve the namespace
-        $namespace = $this->Request->getNamespace();
-
-        // Set Global access
-        $this->Public = false;
+        // Initialize the Endpoint
+        $this->init('contacts');
 
         // Set Properties
-        switch($namespace){
-            case "/contacts/index":
-                $this->Level = 1;
-                break;
-            case "/contacts/create":
-                $this->Level = 2;
-                break;
-            case "/contacts/archive":
-            case "/contacts/recover":
-                $this->Level = 4;
-                break;
-        }
+        $this->required = ['email','name','phone','locale','targetTable','targetId'];
+        $this->optional = ['tollfree','mobile','fax','tags','dba','industries','businessNumber','taxExtension','importerExtension','website','address','city','country','state','zipcode'];
     }
 
     /**
-     * Create a Contact
+     * Create a record
      */
     public function createAction(): array
     {
-        // Import Global Variables
-        global $CSRF;
+        // Call the parent constructor
+        $message = parent::createAction();
 
-        // Set the default message
-        $message = ["status" => 200, "message" => "OK", "data" => []];
-
-        // Check the request method
-        if($this->Request->getMethod() == "POST"){
-            $message["data"]["CSRF"] = [
-                "token" => $CSRF->token(),
-                "key" => $CSRF->key()
-            ];
-        }
-
-        // Check if the Note is accessible
+        // Check if the record is accessible
         if($message['status'] == 200){
 
-            // Check the request method
-            if($this->Request->getMethod() == "POST"){
+            // Retrieve the parameters
+            $parameters = $message['data']['parameters'];
 
-                // Retrieve the parameters
-                $parameters = $this->Request->getParams('REQUEST');
+            // Initialize the fields array
+            $fields = [];
 
-                // Sanitize the parameters
-                foreach($parameters as $key => $value){
-                    if(empty($value)){
-                        unset($parameters[$key]);
-                    } else {
-                        if(!in_array($key,['country','state','locale','email','targetTable','targetId','website','zipcode'])){
-                            if(in_array($key,['tags','industries']) && !is_array($value)){
-                                $value = json_decode($value, true);
-                                $parameters[$key] = $value;
-                            }
-                            if(!is_array($value)){
-                                $parameters[$key] = ucwords(strtolower($value));
-                            } else {
-                                foreach($value as $k => $v){
-                                    $parameters[$key][$k] = ucwords(strtolower($v));
-                                }
-                            }
-                            if(in_array($key,['lead','client'])){
-                                $parameters[$key] = intval($value);
-                            }
-                        }
-                    }
-                }
+            // Check if the Event Plugin is accessible
+            if($this->Helper->Core->isInstalled('event')){
 
-                // Set Required Fields
-                $required = ['email','name','phone','locale','targetTable','targetId'];
+                // Initialize the Events
+                $message['data']['event'] = [];
 
-                // Set Optional Fields
-                $optional = ['lead','client','title','role','address','city','country','state','zipcode','tollfree','mobile','fax','website','tags','industries'];
+                // Setup a new event
+                $event = [
+                    'category' => 'Contact',
+                    'message' => 'New Contact Created by <vcard>'.$this->Auth->user()->vcard['id'].':'.$this->Auth->user()->username.'</vcard>',
+                    'icon' => 'circle',
+                    'color' => 'secondary',
+                    'link' => '/plugin/contacts/details?id='.$message['data']['record']['id'],
+                    'targetTable' => 'contacts',
+                    'targetId' => $message['data']['record']['id'],
+                ];
 
-                // Set Unique Fields
-                $unique = ['id','created','modified','owner','organization'];
+                // Create the event
+                $message['data']['event'][] = $this->Model->Event->create($event);
+            }
 
-                // Check if all required fields are set
-                if(count(array_intersect_key(array_flip($required), $parameters)) == count($required)){
+            // Check if the vCards Plugin is accessible
+            if($this->Helper->Core->isInstalled('vcards')){
 
-                    // Initialize the Events
-                    $message['data']['events'] = [];
+                // Initialize the record
+                $record = $parameters;
 
-                    // Retrieve the user's username and vCard
-                    $owner = $this->Auth->user()->username;
-                    $organization = $this->Auth->user()->organization()->id;
-                    $vCard = $this->Auth->user()->vcard();
+                // Set the vCard category
+                $record['category'] = 'Contact';
 
-                    // Initialize the vCard
-                    $vcard = [
-                        'owner' => $owner,
-                        'organization' => $organization,
-                        'category' => 'Contact'
+                // Create the vCard
+                $fields['vcard'] = $this->Model->Vcards->create($record);
+
+                // Add in the message
+                $message['data']['record']['vcard'] = $this->Model->Vcards->fetch($fields['vcard']);
+
+                // Check if the Event Plugin is accessible
+                if($this->Helper->Core->isInstalled('event')){
+
+                    // Setup a new event
+                    $event = [
+                        'category' => 'vCard',
+                        'message' => 'New vCard Created by <vcard>'.$this->Auth->user()->vcard['id'].':'.$this->Auth->user()->username.'</vcard>',
+                        'icon' => 'circle',
+                        'color' => 'secondary',
+                        'link' => '/plugin/'.$message['data']['record']['targetTable'].'/details?id='.$message['data']['record']['targetId'],
+                        'targetTable' => 'contacts',
+                        'targetId' => $message['data']['record']['id'],
                     ];
 
-                    // Setup the vCard
-                    foreach($required as $key){
-                        if(isset($parameters[$key])){
-                            $vcard[$key] = $parameters[$key];
-                        }
-                    }
-                    foreach($optional as $key){
-                        if(isset($parameters[$key])){
-                            $vcard[$key] = $parameters[$key];
-                        }
-                    }
-                    unset($vcard['targetTable']);
-                    unset($vcard['targetId']);
-                    $vcardId = $this->Model->Vcards->create($vcard);
-
-                    // Initialize the contact
-                    $contact = [
-                        'owner' => $owner,
-                        'organization' => $organization,
-                        'vcard' => $vcardId,
-                        'targetTable' => $parameters['targetTable'],
-                        'targetId' => $parameters['targetId']
-                    ];
-                    $contactId = $this->Model->Contacts->create($contact);
-
-                    // Check if tags is set
-                    if(isset($parameters['tags'])){
-                        foreach($parameters['tags'] as $key => $tag){
-                            $this->Model->Tags->create($tag);
-                        }
-                    }
-
-                    // Check if industries is set
-                    if(isset($parameters['industries'])){
-                        foreach($parameters['industries'] as $key => $industry){
-                            $this->Model->Industries->create($industry);
-                        }
-                    }
-
-                    // Check if a target object has been created
-                    if($vcardId && $contactId){
-
-                        // Retrieve the final lead
-                        $message['data']['record'] = $this->Model->Contacts->get($contactId);
-
-                        if(isset($parameters['targetTable']) && isset($parameters['targetId'])){
-
-                            // Create the an event
-                            $message['data']['events'][] = $this->Model->Event->create($owner, $parameters['targetTable'], $parameters['targetId'], 'Contact', '<vcard>'.$vCard['id'].':'.$this->Auth->user()->username.'</vcard> has created <vcard>'.$vcardId.':'.$vcard['name'].'</vcard>.');
-                        }
-                    } else {
-                        $message['status'] = 500;
-                        $message['message'] = "Internal Server Error";
-                        $message['data']['error'] = "The contact could not be created.";
-                    }
-                } else {
-                    $message['status'] = 400;
-                    $message['message'] = "Bad Request";
-                    $message['data']['error'] = "Some required fields are missing [";
-                    foreach($required as $key){
-                        if(!array_key_exists($key, $parameters)){
-                            $message['data']['error'] .= $key.", ";
-                        }
-                    }
-                    $message['data']['error'] = rtrim($message['data']['error'], ", ");
-                    $message['data']['error'] .= "]";
+                    // Create the event
+                    $message['data']['event'][] = $this->Model->Event->create($event);
                 }
-            } else {
-                $message = ["status" => 405, "message" => "Method Not Allowed", "data" => "The method is not allowed for the requested URL."];
+            }
+
+            // Check if tags is set
+            if($this->Helper->Core->isInstalled('tags') && array_key_exists('tags', $parameters) && !empty($parameters['tags'])){
+
+                // Loop through the tags
+                foreach($parameters['tags'] ?? [] as $key => $tag){
+
+                    // Check if the tag is not empty
+                    if(!empty($tag)){
+
+                        // Create the tag
+                        $this->Model->Tags->create(['name' => $tag]);
+                    }
+                }
+            }
+
+            // Check if industries is set
+            if($this->Helper->Core->isInstalled('industries') && array_key_exists('industries', $parameters) && !empty($parameters['industries'])){
+
+                // Loop through the industries
+                foreach($parameters['industries'] ?? [] as $key => $industry){
+
+                    // Check if the industry is not empty
+                    if(!empty($industry)){
+
+                        // Create the industry
+                        $this->Model->Industries->create(['name' => $industry]);
+                    }
+                }
+            }
+
+            // Check if $fields is empty
+            if(!empty($fields)){
+                $affectedRows = $this->Model->Contacts->update($message['data']['record']['id'], $fields);
             }
         }
 
+        // Return the message
         return $message;
     }
 
     /**
-     * retrieve a list of Contacts
-     */
-    public function indexAction(): array
-    {
-        // Set the default message
-        $message = ["status" => 200, "message" => "OK", "data" => []];
-
-        // Check if the Note is accessible
-        if($message['status'] == 200){
-
-            // Check the request method
-            if($this->Request->getMethod() == "GET"){
-
-                // Retrieve the parameters
-                $parameters = $this->Request->getParams('REQUEST');
-
-                // Set Required Fields
-                $required = ['targetTable','targetId'];
-
-                // Check if all required fields are set
-                if(count(array_intersect_key(array_flip($required), $parameters)) == count($required)){
-
-                    // Retrieve the contacts
-                    $message['data']['records'] = $this->Model->Contacts->list($parameters['targetTable'], intval($parameters['targetId']));
-                } else {
-                    $message['status'] = 400;
-                    $message['message'] = "Bad Request";
-                    $message['data']['error'] = "Some required fields are missing [";
-                    foreach($required as $key){
-                        if(!array_key_exists($key, $parameters)){
-                            $message['data']['error'] .= $key.", ";
-                        }
-                    }
-                    $message['data']['error'] = rtrim($message['data']['error'], ", ");
-                    $message['data']['error'] .= "]";
-                }
-            } else {
-                $message = ["status" => 405, "message" => "Method Not Allowed", "data" => "The method is not allowed for the requested URL."];
-            }
-        }
-
-        return $message;
-    }
-
-    /**
-     * Archive a Contact
+     * Archive a record
      */
     public function archiveAction(): array
     {
-        // Set the default message
-        $message = ["status" => 200, "message" => "OK", "data" => []];
+        // Call the parent constructor
+        $message = parent::archiveAction();
 
-        // Retrieve the Contact
-        $contact = $this->Model->Contacts->get(intval($this->Request->getParams('GET','id')));
-
-        // Check if the Contact is accessible
-        if(empty($contact)){
-            $message = ["status" => 404, "message" => "Not Found", "data" => "Could not find the requested contact."];
-        } else {
-            if($contact['organization']['id'] != $this->Auth->user()->organization()->id){
-                $message = ["status" => 403, "message" => "Forbidden", "data" => "You are not allowed to access this contact."];
-            }
-        }
-
-        // Check if the Note is accessible
+        // Check if the record is accessible
         if($message['status'] == 200){
 
-            // Check the request method
-            if($this->Request->getMethod() == "GET"){
+            // Check if the Event Plugin is accessible
+            if($this->Helper->Core->isInstalled('event')){
 
-                // Update the Contact
-                $this->Model->Contacts->update($contact['id'], ["isArchived" => 1]);
+                // Initialize the Events
+                $message['data']['event'] = [];
 
-                // Retrieve the Updated Contact
-                $message["data"]["record"] = $this->Model->Contacts->get($contact['id']);
-            } else {
-                $message = ["status" => 400, "message" => "Bad Request", "data" => "Invalid Request Method"];
+                // Setup a new event
+                $event = [
+                    'category' => 'Contact',
+                    'message' => 'Contact Archived by <vcard>'.$this->Auth->user()->vcard['id'].':'.$this->Auth->user()->username.'</vcard>',
+                    'icon' => 'circle',
+                    'color' => 'secondary',
+                    'link' => '/plugin/contacts/details?id='.$message['data']['record']['id'].'&name='.urlencode($message['data']['record']['vcard']['name']),
+                    'targetTable' => 'contacts',
+                    'targetId' => $message['data']['record']['id'],
+                ];
+
+                // Create the event
+                $message['data']['event'][] = $this->Model->Event->create($event);
+
+                // Setup a new event for the task
+                $event['link'] = '/plugin/'.$message['data']['record']['targetTable'].'/index?id='.$message['data']['record']['targetId'];
+                $event['targetTable'] = $message['data']['record']['targetTable'];
+                $event['targetId'] = $message['data']['record']['targetId'];
+
+                // Create the event
+                $message['data']['event'][] = $this->Model->Event->create($event);
             }
         }
 
+        // Return the message
         return $message;
     }
 
     /**
-     * Recover a Contact
+     * Recover a record
      */
     public function recoverAction(): array
     {
-        // Set the default message
-        $message = ["status" => 200, "message" => "OK", "data" => []];
+        // Call the parent constructor
+        $message = parent::recoverAction();
 
-        // Retrieve the Contact
-        $contact = $this->Model->Contacts->get(intval($this->Request->getParams('GET','id')));
-
-        // Check if the Contact is accessible
-        if(empty($contact)){
-            $message = ["status" => 404, "message" => "Not Found", "data" => "Could not find the requested contact."];
-        } else {
-            if($contact['organization']['id'] != $this->Auth->user()->organization()->id){
-                $message = ["status" => 403, "message" => "Forbidden", "data" => "You are not allowed to access this contact."];
-            }
-        }
-
-        // Check if the Note is accessible
+        // Check if the record is accessible
         if($message['status'] == 200){
 
-            // Check the request method
-            if($this->Request->getMethod() == "GET"){
+            // Check if the Event Plugin is accessible
+            if($this->Helper->Core->isInstalled('event')){
 
-                // Update the Contact
-                $affectedRows = $this->Model->Contacts->update($contact['id'], ["isArchived" => 0]);
+                // Initialize the Events
+                $message['data']['event'] = [];
 
-                // Retrieve the Updated Contact
-                $message["data"]["record"] = $this->Model->Contacts->get($contact['id']);
-            } else {
-                $message = ["status" => 400, "message" => "Bad Request", "data" => "Invalid Request Method"];
+                // Setup a new event
+                $event = [
+                    'category' => 'Contact',
+                    'message' => 'Contact Recovered by <vcard>'.$this->Auth->user()->vcard['id'].':'.$this->Auth->user()->username.'</vcard>',
+                    'icon' => 'circle',
+                    'color' => 'secondary',
+                    'link' => '/plugin/contacts/details?id='.$message['data']['record']['id'].'&name='.urlencode($message['data']['record']['vcard']['name']),
+                    'targetTable' => 'contacts',
+                    'targetId' => $message['data']['record']['id'],
+                ];
+
+                // Create the event
+                $message['data']['event'][] = $this->Model->Event->create($event);
+
+                // Setup a new event for the task
+                $event['link'] = '/plugin/'.$message['data']['record']['targetTable'].'/index?id='.$message['data']['record']['targetId'];
+                $event['targetTable'] = $message['data']['record']['targetTable'];
+                $event['targetId'] = $message['data']['record']['targetId'];
+
+                // Create the event
+                $message['data']['event'][] = $this->Model->Event->create($event);
             }
         }
 
+        // Return the message
         return $message;
     }
 }

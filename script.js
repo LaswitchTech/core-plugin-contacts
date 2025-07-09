@@ -1,10 +1,3 @@
-//
-//   Core Framework - Script file
-//
-//   @license    MIT (https://mit-license.org/)
-//   @author     Louis Ouellet <louis@laswitchtech.com>
-//
-
 const ContactModalCreate = function(list, fields = {}){
     builder.Component(
         "modal",
@@ -50,14 +43,11 @@ const ContactModalCreate = function(list, fields = {}){
                         submit: function(form){
                             console.log(form.val());
                             $.ajax({
-                                url: '/endpoint.php/contacts/create',
+                                url: '/api/contacts/create',
+                                headers: {'X-CSRF-Authorization': CSRF_KEY},
                                 type: 'POST',dataType: 'json',
                                 data: form.val(),
                                 success: function(response) {
-
-                                    // Update the CSRF
-                                    CSRF_KEY = response.CSRF.key;
-                                    CSRF_TOKEN = response.CSRF.token;
 
                                     // Add the contact to the list
                                     list.add(
@@ -124,7 +114,7 @@ const ContactModalArchive = function(contact, elementContact = null){
 
                         // AJAX Request
                         $.ajax({
-                            url: '/endpoint.php/contacts/archive?id='+contact.id,
+                            url: '/api/contacts/archive?id='+contact.id,
                             type: 'GET',dataType: 'json',
                             success: function(response) {
 
@@ -297,8 +287,16 @@ function process_function_hasContact(task, value, callback = null){
 
         // Ajax Request
         $.ajax({
-            url: '/endpoint.php/contacts/index?targetTable='+task.targetTable+'&targetId='+task.targetId,
-            type: 'GET',dataType: 'json',
+            url: '/api/contacts/fetchAll?targetTable='+task.targetTable+'&targetId='+task.targetId,
+            headers: {'X-CSRF-Authorization': CSRF_KEY},
+            type: 'POST',dataType: 'json',
+            data: {
+                conditions: [
+                    {key: 'targetTable', operator: '=', value: task.targetTable},
+                    {key: 'targetId', operator: '=', value: task.targetId},
+                    {key: 'isArchived', operator: '<>', value: 1},
+                ]
+            },
             success: function(response) {
                 for(const [id, contact] of Object.entries(response.records ?? {})){
                     if(contact.vcard.role === value){
