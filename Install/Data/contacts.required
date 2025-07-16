@@ -1,0 +1,13 @@
+[
+    {
+        "id": 9999,
+        "created": "2025-04-07 15:10:37",
+        "modified": "2025-04-07 15:10:37",
+        "owner": "demo",
+        "vcard": null,
+        "organization": 0,
+        "isArchived": 0,
+        "targetTable": null,
+        "targetId": null
+    }
+]
