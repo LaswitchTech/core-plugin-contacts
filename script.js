@@ -302,7 +302,7 @@ function process_function_hasContact(task, value, callback = null){
             },
             success: function(response) {
                 for(const [id, contact] of Object.entries(response.records ?? {})){
-                    if(contact.vcard.role === value){
+                    if($.isArray(contact.vcard.role) && contact.vcard.role.includes(value)){
 
                         // Execute Callback
                         if(typeof callback === "function"){
