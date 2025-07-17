@@ -202,7 +202,10 @@ const ContactFormat = function(element, contact){
     // Add the name
     element.name = $(document.createElement('span')).addClass('fs-5 fw-lighter').text(contact.vcard.name).appendTo(element.field.container.content.line1);
     element.title = $(document.createElement('span')).addClass('badge ms-2 text-bg-secondary').text(contact.vcard.title).appendTo(element.field.container.content.line1);
-    element.role = $(document.createElement('span')).addClass('badge ms-2 text-bg-warning').text(contact.vcard.role).appendTo(element.field.container.content.line1);
+    element.role = $(document.createElement('span')).appendTo(element.field.container.content.line1);
+    for(const [key, role] of Object.entries(contact.vcard.role)){
+        $(document.createElement('span')).addClass('badge ms-2 text-bg-warning').text(role).appendTo(element.role);
+    }
     element.phone = $(document.createElement('a')).attr('href','tel:'+contact.vcard.phone).addClass('btn btn-sm btn-primary').html('<i class="me-1 bi bi-telephone"></i>'+contact.vcard.phone).appendTo(element.field.container.content.line2);
     element.email = $(document.createElement('a')).attr('href','mailto:'+contact.vcard.email).addClass('btn btn-sm btn-primary ms-2').html('<i class="me-1 bi bi-envelope"></i>'+contact.vcard.email).appendTo(element.field.container.content.line2);
 

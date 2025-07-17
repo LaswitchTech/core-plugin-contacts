@@ -18,6 +18,30 @@ class ContactsModel extends BaseModel {
     }
 
     /**
+     * Process a record
+     *
+     * @param array $record
+     * @return array
+     */
+    protected function process(array $record): array
+    {
+        // Call the parent constructor
+        $record = parent::process($record);
+
+        // Check if the record has role
+        if(array_key_exists('vcard', $record) && !empty($record['vcard'])){
+            if(array_key_exists('role', $record['vcard']) && !empty($record['vcard']['role']) && !is_array($record['vcard']['role'])){
+
+                // Process the roles
+                $record['vcard']['role'] = json_decode($record['vcard']['role'] ?? "[]", true);
+            }
+        }
+
+        // Return the processed record
+        return $record;
+    }
+
+    /**
      * Retrieve multiple records
      *
      * @param array $conditions
