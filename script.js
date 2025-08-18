@@ -211,11 +211,19 @@ const ContactFormat = function(element, contact){
 
     // Add the actions
     element.field.container.controls.actions = $(document.createElement('div')).addClass('btn-group').appendTo(element.field.container.controls);
-    element.field.container.controls.actions.edit = $(document.createElement('button')).addClass('btn btn-sm btn-warning').html('<i class="bi bi-pencil"></i>').appendTo(element.field.container.controls.actions);
+    element.field.container.controls.actions.edit = $(document.createElement('button')).attr({
+        'class': 'btn btn-sm btn-warning',
+        'data-action': 'edit',
+        'type': 'button',
+    }).html('<i class="bi bi-pencil"></i>').appendTo(element.field.container.controls.actions);
     element.field.container.controls.actions.edit.click(function(){
         vCardModalEdit(contact.vcard);
     });
-    element.field.container.controls.actions.archive = $(document.createElement('button')).addClass('btn btn-sm btn-dark').html('<i class="bi bi-archive"></i>').appendTo(element.field.container.controls.actions);
+    element.field.container.controls.actions.archive = $(document.createElement('button')).attr({
+        'class': 'btn btn-sm btn-dark',
+        'data-action': 'archive',
+        'type': 'button',
+    }).html('<i class="bi bi-archive"></i>').appendTo(element.field.container.controls.actions);
     element.field.container.controls.actions.archive.click(function(){
         ContactModalArchive(contact, element);
     });
