@@ -18,7 +18,7 @@ const ContactModalCreate = function(list, fields = {}){
         },
         function(modal,component){
             const componentModal = component;
-            component.header.addClass('text-bg-success');
+            component.addClass('modal-success');
             component.footer.submit.addClass('btn-success').removeClass('btn-link').attr({
                 "style": "border-bottom-right-radius: var(--bs-modal-inner-border-radius) !important;border-bottom-left-radius: var(--bs-modal-inner-border-radius) !important;",
             }).text(builder.Locale.get('Create'));
@@ -137,7 +137,7 @@ const ContactModalArchive = function(contact, elementContact = null){
             const componentModal = component;
 
             // Style the modal
-            component.header.addClass('text-bg-dark');
+            component.addClass('modal-dark');
             component.footer.submit.addClass('btn-dark').removeClass('btn-link').attr({
                 "style": "border-bottom-right-radius: var(--bs-modal-inner-border-radius) !important;border-bottom-left-radius: var(--bs-modal-inner-border-radius) !important;",
             }).text(builder.Locale.get('Archive'));
@@ -211,11 +211,19 @@ const ContactFormat = function(element, contact){
 
     // Add the actions
     element.field.container.controls.actions = $(document.createElement('div')).addClass('btn-group').appendTo(element.field.container.controls);
-    element.field.container.controls.actions.edit = $(document.createElement('button')).addClass('btn btn-sm btn-warning').html('<i class="bi bi-pencil"></i>').appendTo(element.field.container.controls.actions);
+    element.field.container.controls.actions.edit = $(document.createElement('button')).attr({
+        'class': 'btn btn-sm btn-warning',
+        'data-action': 'edit',
+        'type': 'button',
+    }).html('<i class="bi bi-pencil"></i>').appendTo(element.field.container.controls.actions);
     element.field.container.controls.actions.edit.click(function(){
         vCardModalEdit(contact.vcard);
     });
-    element.field.container.controls.actions.archive = $(document.createElement('button')).addClass('btn btn-sm btn-dark').html('<i class="bi bi-archive"></i>').appendTo(element.field.container.controls.actions);
+    element.field.container.controls.actions.archive = $(document.createElement('button')).attr({
+        'class': 'btn btn-sm btn-dark',
+        'data-action': 'archive',
+        'type': 'button',
+    }).html('<i class="bi bi-archive"></i>').appendTo(element.field.container.controls.actions);
     element.field.container.controls.actions.archive.click(function(){
         ContactModalArchive(contact, element);
     });
