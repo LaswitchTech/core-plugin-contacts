@@ -219,7 +219,7 @@ builder.add('widgets','contacts', class extends builder.ComponentClass {
             return this;
         }
 
-        // Retrieve Notes
+        // Retrieve records
         $.ajax({
             url: '/api/contacts/fetchAll',
             headers: {'X-CSRF-Authorization': CSRF_KEY},
@@ -230,6 +230,9 @@ builder.add('widgets','contacts', class extends builder.ComponentClass {
                     {key: 'targetId', operator: '=', value: this._properties.targetId},
                     {key: 'isArchived', operator: '<>', value: 1},
                 ]
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching data:', error);
             },
             success: function(response) {
 
