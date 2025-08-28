@@ -17,8 +17,7 @@ class ContactsEndpoint extends BaseEndpoint {
         $this->init('contacts');
 
         // Set Properties
-        $this->required = ['email','name','phone','locale','targetTable','targetId'];
-        $this->optional = ['tollfree','mobile','fax','tags','dba','industries','businessNumber','taxExtension','importerExtension','website','address','city','country','state','zipcode'];
+        $this->required = ['name','targetTable','targetId'];
     }
 
     /**
