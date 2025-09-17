@@ -220,26 +220,17 @@ builder.add('widgets','contacts', class extends builder.ComponentClass {
         }
 
         // Retrieve records
-        $.ajax({
-            url: '/api/contacts/fetchAll',
-            headers: {'X-CSRF-Authorization': CSRF_KEY},
-            type: 'POST',dataType: 'json',
-            data: {
-                conditions: [
-                    {key: 'targetTable', operator: '=', value: this._properties.targetTable},
-                    {key: 'targetId', operator: '=', value: this._properties.targetId},
-                    {key: 'isArchived', operator: '<>', value: 1},
-                ]
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching data:', error);
-            },
-            success: function(response) {
+        API.endpoint('/contacts/fetchAll').data({
+            conditions: [
+                {key: 'targetTable', operator: '=', value: this._properties.targetTable},
+                {key: 'targetId', operator: '=', value: this._properties.targetId},
+                {key: 'isArchived', operator: '<>', value: 1},
+            ]
+        }).execute(function(response){
 
-                // Add Contacts Posts
-                for(const [key, record] of Object.entries(response.records)){
-                    self.add(record);
-                }
+            // Add Contacts Posts
+            for(const [key, record] of Object.entries(response.records)){
+                self.add(record);
             }
         });
 
@@ -482,17 +473,13 @@ builder.add('widgets','contacts', class extends builder.ComponentClass {
                         modal.spinner(true);
 
                         // AJAX Request - Archive the vcard
-                        $.ajax({
-                            url: '/api/contacts/archive?id='+vcard.data.id,
-                            type: 'GET',dataType: 'json',
-                            success: function(response) {
+                        API.endpoint('/contacts/archive?id='+vcard.data.id).execute(function(response){
 
-                                // Remove the vcard
-                                vcard.remove();
+                            // Remove the vcard
+                            vcard.remove();
 
-                                // Close the modal
-                                modal.hide();
-                            }
+                            // Close the modal
+                            modal.hide();
                         });
                     },
                 },
@@ -527,301 +514,281 @@ builder.add('widgets','contacts', class extends builder.ComponentClass {
                                 const parent = component.dialog;
 
                                 // Retrieve the libraries
-                                $.ajax({
-                                    url: '/api/library/fetch',
-                                    type: 'GET',dataType: 'json',
-                                    error: function(xhr, status, error) {
-                                        console.error('Error fetching data:', error);
+                                API.endpoint('/library/fetch').execute(function(library){
+
+                                    // Retrieve the vCard's roles
+                                    API.endpoint('/categories/fetchAll').data({
+                                        conditions: [
+                                            {key: 'targetTable', operator: '=', value: 'vcards.role'},
+                                        ]
+                                    }).execute(function(response){
+
+                                        // Create Role Options
+                                        const roles = [];
+                                        for(const [key, record] of Object.entries(response.records)){
+                                            roles.push({id: record.name, text: builder.Locale.get(record.name)});
+                                        }
+
+                                        // Create the Form
+                                        self._builder.Utility(
+                                            'form',
+                                            component.body,
+                                            {
+                                                class:{
+                                                    component: 'row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3',
+                                                },
+                                                callback: {
+                                                    val: function(values){
+                                                        // Set the default values
+                                                        values.targetTable = self._properties.targetTable;
+                                                        values.targetId = self._properties.targetId;
+                                                        return values;
+                                                    },
+                                                    submit: function(form){
+
+                                                        // Show the modal spinner
+                                                        modal.spinner(true);
+
+                                                        // Create the vCard
+                                                        API.endpoint('/contacts/create').data(form.val()).execute(function(response){
+
+                                                            // Add the new vCard to the contacts
+                                                            self.add(response.record);
+
+                                                            // Hide the modal
+                                                            modal.hide();
+                                                        });
+                                                    },
+                                                }
+                                            },
+                                            function(form,component){
+
+                                                // Add event listener on the modal submit button
+                                                parent.content.footer.submit.click(function(e){
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    form.submit();
+                                                });
+
+                                                // name
+                                                form.add(
+                                                    'text',
+                                                    {
+                                                        name: 'name',
+                                                        label: self._builder.Locale.get('Name'),
+                                                        placeholder: self._builder.Locale.get('Enter name'),
+                                                        required: true,
+                                                        class: {
+                                                            component: 'col-12',
+                                                            label: 'text-bg-primary',
+                                                        },
+                                                    }
+                                                );
+                                                // title
+                                                form.add(
+                                                    'text',
+                                                    {
+                                                        name: 'title',
+                                                        label: self._builder.Locale.get('Title'),
+                                                        placeholder: self._builder.Locale.get('Enter title'),
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // role
+                                                form.add(
+                                                    'select2',
+                                                    {
+                                                        name: 'role',
+                                                        label: self._builder.Locale.get('Role'),
+                                                        placeholder: self._builder.Locale.get('Select role(s)'),
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-8',
+                                                        },
+                                                        multiple: true,
+                                                        options: roles,
+                                                        allowClear: true,
+                                                    }
+                                                );
+                                                // address
+                                                form.add(
+                                                    'text',
+                                                    {
+                                                        name: 'address',
+                                                        label: self._builder.Locale.get('Address'),
+                                                        placeholder: self._builder.Locale.get('Enter address'),
+                                                        value: self._properties.default.address,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-7',
+                                                        },
+                                                    }
+                                                );
+                                                // city
+                                                form.add(
+                                                    'text',
+                                                    {
+                                                        name: 'city',
+                                                        label: self._builder.Locale.get('City'),
+                                                        placeholder: self._builder.Locale.get('Enter city'),
+                                                        value: self._properties.default.city,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-5',
+                                                        },
+                                                    }
+                                                );
+                                                // country
+                                                form.add(
+                                                    'select2',
+                                                    {
+                                                        name: 'country',
+                                                        label: self._builder.Locale.get('Country'),
+                                                        placeholder: self._builder.Locale.get('Select country'),
+                                                        value: self._properties.default.country.code,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                        options: library.options.countries,
+                                                        callback: {
+                                                            onChange: function(input, component){
+
+                                                                // Check if the state input exists
+                                                                if(!form._inputs.state){
+                                                                    return;
+                                                                }
+
+                                                                // Clear the state select2 options
+                                                                form._inputs.state.delete();
+
+                                                                // Add the new options based on the selected country
+                                                                for(const [key, option] of Object.entries(library.options.states[input.val()] || [])){
+                                                                    form._inputs.state.add(option.id, option.text);
+                                                                }
+
+                                                                // Reset the state value
+                                                                form._inputs.state.reset();
+                                                            }
+                                                        },
+                                                    }
+                                                );
+                                                // state
+                                                form.add(
+                                                    'select2',
+                                                    {
+                                                        name: 'state',
+                                                        label: self._builder.Locale.get('State'),
+                                                        placeholder: self._builder.Locale.get('Select state'),
+                                                        value: self._properties.default.state.code,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                        options: library.options.states[self._properties.default.country.code] || [],
+                                                    }
+                                                );
+                                                // zipcode
+                                                form.add(
+                                                    'zipcode',
+                                                    {
+                                                        name: 'zipcode',
+                                                        label: self._builder.Locale.get('Zipcode'),
+                                                        placeholder: self._builder.Locale.get('Enter zipcode'),
+                                                        value: self._properties.default.zipcode,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // email
+                                                form.add(
+                                                    'email',
+                                                    {
+                                                        name: 'email',
+                                                        label: self._builder.Locale.get('Email'),
+                                                        placeholder: self._builder.Locale.get('Enter email'),
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-8',
+                                                            label: 'text-bg-primary',
+                                                        },
+                                                    }
+                                                );
+                                                // fax
+                                                form.add(
+                                                    'phone',
+                                                    {
+                                                        name: 'fax',
+                                                        label: self._builder.Locale.get('Fax'),
+                                                        placeholder: self._builder.Locale.get('Enter fax'),
+                                                        value: self._properties.default.fax,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // phone
+                                                form.add(
+                                                    'phoneExt',
+                                                    {
+                                                        name: 'phone',
+                                                        label: self._builder.Locale.get('Phone'),
+                                                        placeholder: self._builder.Locale.get('Enter phone'),
+                                                        value: self._properties.default.phone,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // mobile
+                                                form.add(
+                                                    'phone',
+                                                    {
+                                                        name: 'mobile',
+                                                        label: self._builder.Locale.get('Mobile'),
+                                                        placeholder: self._builder.Locale.get('Enter mobile'),
+                                                        value: self._properties.default.mobile,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // tollfree
+                                                form.add(
+                                                    'phoneInt',
+                                                    {
+                                                        name: 'tollfree',
+                                                        label: self._builder.Locale.get('Tollfree'),
+                                                        placeholder: self._builder.Locale.get('Enter tollfree'),
+                                                        value: self._properties.default.tollfree,
+                                                        class: {
+                                                            component: 'col-12 col-md-6 col-lg-4',
+                                                        },
+                                                    }
+                                                );
+                                                // locale
+                                                form.add(
+                                                    'select2',
+                                                    {
+                                                        name: 'locale',
+                                                        label: self._builder.Locale.get('Locale'),
+                                                        placeholder: self._builder.Locale.get('Select locale'),
+                                                        value: self._properties.default.locale,
+                                                        class: {
+                                                            component: 'col-12',
+                                                        },
+                                                        options: library.options.locales,
+                                                    }
+                                                );
+
+                                                // Resolve the promise
+                                                resolve();
+                                            },
+                                        );
+                                    },function(xhr, status, error){
                                         modal.hide();
                                         reject(error);
-                                    },
-                                    success: function(library) {
-
-                                        // Retrieve the vCard's roles
-                                        $.ajax({
-                                            url: '/api/categories/fetchAll',
-                                            headers: {'X-CSRF-Authorization': CSRF_KEY},
-                                            type: 'POST',dataType: 'json',
-                                            data: {
-                                                conditions: [
-                                                    {key: 'targetTable', operator: '=', value: 'vcards.role'},
-                                                ]
-                                            },
-                                            error: function(xhr, status, error) {
-                                                console.error('Error fetching data:', error);
-                                                modal.hide();
-                                                reject(error);
-                                            },
-                                            success: function(response) {
-
-                                                // Create Role Options
-                                                const roles = [];
-                                                for(const [key, record] of Object.entries(response.records)){
-                                                    roles.push({id: record.name, text: builder.Locale.get(record.name)});
-                                                }
-
-                                                // Create the Form
-                                                self._builder.Utility(
-                                                    'form',
-                                                    component.body,
-                                                    {
-                                                        class:{
-                                                            component: 'row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3',
-                                                        },
-                                                        callback: {
-                                                            val: function(values){
-                                                                // Set the default values
-                                                                values.targetTable = self._properties.targetTable;
-                                                                values.targetId = self._properties.targetId;
-                                                                return values;
-                                                            },
-                                                            submit: function(form){
-
-                                                                // Show the modal spinner
-                                                                modal.spinner(true);
-
-                                                                // Create the vCard
-                                                                $.ajax({
-                                                                    url: '/api/contacts/create',
-                                                                    headers: {'X-CSRF-Authorization': CSRF_KEY},
-                                                                    type: 'POST',dataType: 'json',
-                                                                    data: form.val(),
-                                                                    success: function(response) {
-
-                                                                        // Add the new vCard to the contacts
-                                                                        self.add(response.record);
-
-                                                                        // Hide the modal
-                                                                        modal.hide();
-                                                                    }
-                                                                });
-                                                            },
-                                                        }
-                                                    },
-                                                    function(form,component){
-
-                                                        // Add event listener on the modal submit button
-                                                        parent.content.footer.submit.click(function(e){
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            form.submit();
-                                                        });
-
-                                                        // name
-                                                        form.add(
-                                                            'text',
-                                                            {
-                                                                name: 'name',
-                                                                label: self._builder.Locale.get('Name'),
-                                                                placeholder: self._builder.Locale.get('Enter name'),
-                                                                required: true,
-                                                                class: {
-                                                                    component: 'col-12',
-                                                                    label: 'text-bg-primary',
-                                                                },
-                                                            }
-                                                        );
-                                                        // title
-                                                        form.add(
-                                                            'text',
-                                                            {
-                                                                name: 'title',
-                                                                label: self._builder.Locale.get('Title'),
-                                                                placeholder: self._builder.Locale.get('Enter title'),
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // role
-                                                        form.add(
-                                                            'select2',
-                                                            {
-                                                                name: 'role',
-                                                                label: self._builder.Locale.get('Role'),
-                                                                placeholder: self._builder.Locale.get('Select role(s)'),
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-8',
-                                                                },
-                                                                multiple: true,
-                                                                options: roles,
-                                                                allowClear: true,
-                                                            }
-                                                        );
-                                                        // address
-                                                        form.add(
-                                                            'text',
-                                                            {
-                                                                name: 'address',
-                                                                label: self._builder.Locale.get('Address'),
-                                                                placeholder: self._builder.Locale.get('Enter address'),
-                                                                value: self._properties.default.address,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-7',
-                                                                },
-                                                            }
-                                                        );
-                                                        // city
-                                                        form.add(
-                                                            'text',
-                                                            {
-                                                                name: 'city',
-                                                                label: self._builder.Locale.get('City'),
-                                                                placeholder: self._builder.Locale.get('Enter city'),
-                                                                value: self._properties.default.city,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-5',
-                                                                },
-                                                            }
-                                                        );
-                                                        // country
-                                                        form.add(
-                                                            'select2',
-                                                            {
-                                                                name: 'country',
-                                                                label: self._builder.Locale.get('Country'),
-                                                                placeholder: self._builder.Locale.get('Select country'),
-                                                                value: self._properties.default.country.code,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                                options: library.options.countries,
-                                                                callback: {
-                                                                    onChange: function(input, component){
-
-                                                                        // Check if the state input exists
-                                                                        if(!form._inputs.state){
-                                                                            return;
-                                                                        }
-
-                                                                        // Clear the state select2 options
-                                                                        form._inputs.state.delete();
-
-                                                                        // Add the new options based on the selected country
-                                                                        for(const [key, option] of Object.entries(library.options.states[input.val()] || [])){
-                                                                            form._inputs.state.add(option.id, option.text);
-                                                                        }
-
-                                                                        // Reset the state value
-                                                                        form._inputs.state.reset();
-                                                                    }
-                                                                },
-                                                            }
-                                                        );
-                                                        // state
-                                                        form.add(
-                                                            'select2',
-                                                            {
-                                                                name: 'state',
-                                                                label: self._builder.Locale.get('State'),
-                                                                placeholder: self._builder.Locale.get('Select state'),
-                                                                value: self._properties.default.state.code,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                                options: library.options.states[self._properties.default.country.code] || [],
-                                                            }
-                                                        );
-                                                        // zipcode
-                                                        form.add(
-                                                            'zipcode',
-                                                            {
-                                                                name: 'zipcode',
-                                                                label: self._builder.Locale.get('Zipcode'),
-                                                                placeholder: self._builder.Locale.get('Enter zipcode'),
-                                                                value: self._properties.default.zipcode,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // email
-                                                        form.add(
-                                                            'email',
-                                                            {
-                                                                name: 'email',
-                                                                label: self._builder.Locale.get('Email'),
-                                                                placeholder: self._builder.Locale.get('Enter email'),
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-8',
-                                                                    label: 'text-bg-primary',
-                                                                },
-                                                            }
-                                                        );
-                                                        // fax
-                                                        form.add(
-                                                            'phone',
-                                                            {
-                                                                name: 'fax',
-                                                                label: self._builder.Locale.get('Fax'),
-                                                                placeholder: self._builder.Locale.get('Enter fax'),
-                                                                value: self._properties.default.fax,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // phone
-                                                        form.add(
-                                                            'phoneExt',
-                                                            {
-                                                                name: 'phone',
-                                                                label: self._builder.Locale.get('Phone'),
-                                                                placeholder: self._builder.Locale.get('Enter phone'),
-                                                                value: self._properties.default.phone,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // mobile
-                                                        form.add(
-                                                            'phone',
-                                                            {
-                                                                name: 'mobile',
-                                                                label: self._builder.Locale.get('Mobile'),
-                                                                placeholder: self._builder.Locale.get('Enter mobile'),
-                                                                value: self._properties.default.mobile,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // tollfree
-                                                        form.add(
-                                                            'phoneInt',
-                                                            {
-                                                                name: 'tollfree',
-                                                                label: self._builder.Locale.get('Tollfree'),
-                                                                placeholder: self._builder.Locale.get('Enter tollfree'),
-                                                                value: self._properties.default.tollfree,
-                                                                class: {
-                                                                    component: 'col-12 col-md-6 col-lg-4',
-                                                                },
-                                                            }
-                                                        );
-                                                        // locale
-                                                        form.add(
-                                                            'select2',
-                                                            {
-                                                                name: 'locale',
-                                                                label: self._builder.Locale.get('Locale'),
-                                                                placeholder: self._builder.Locale.get('Select locale'),
-                                                                value: self._properties.default.locale,
-                                                                class: {
-                                                                    component: 'col-12',
-                                                                },
-                                                                options: library.options.locales,
-                                                            }
-                                                        );
-
-                                                        // Resolve the promise
-                                                        resolve();
-                                                    },
-                                                );
-                                            },
-                                        });
-                                    },
+                                    });
+                                },function(xhr, status, error){
+                                    modal.hide();
+                                    reject(error);
                                 });
                             } catch(e) { reject(e); }
                         });
