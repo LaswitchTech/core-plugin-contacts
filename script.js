@@ -5,31 +5,21 @@ function process_function_hasContact(task, value, callback = null){
     if(typeof task.target !== 'undefined'){
 
         // Ajax Request
-        $.ajax({
-            url: '/api/contacts/fetchAll?targetTable='+task.targetTable+'&targetId='+task.targetId,
-            headers: {'X-CSRF-Authorization': CSRF_KEY},
-            type: 'POST',dataType: 'json',
-            data: {
-                conditions: [
-                    {key: 'targetTable', operator: '=', value: task.targetTable},
-                    {key: 'targetId', operator: '=', value: task.targetId},
-                    {key: 'isArchived', operator: '<>', value: 1},
-                ]
-            },
-            success: function(response) {
-                for(const [id, contact] of Object.entries(response.records ?? {})){
-                    if($.isArray(contact.vcard.role) && contact.vcard.role.includes(value)){
-
-                        // Execute Callback
-                        if(typeof callback === "function"){
-                            callback(task, contact);
-                        }
-
-                        // Break the loop
-                        break;
+        API.endpoint('/contacts/fetchAll').data({
+            conditions: [
+                {key: 'targetTable', operator: '=', value: task.targetTable},
+                {key: 'targetId', operator: '=', value: task.targetId},
+                {key: 'isArchived', operator: '<>', value: 1},
+            ]
+        }).execute(function(response){
+            for(const [id, contact] of Object.entries(response.records ?? {})){
+                if($.isArray(contact.vcard.role) && contact.vcard.role.includes(value)){
+                    if(typeof callback === "function"){
+                        callback(task, contact);
                     }
+                    break;
                 }
-            },
+            }
         });
     }
 }
