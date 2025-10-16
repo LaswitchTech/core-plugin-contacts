@@ -12,6 +12,9 @@ class ContactsPostModel extends ContactsModel {
      */
     public function post($record): array
     {
+        // Check if the record ID is below 9999
+        if($record['id'] <= 9999) return $record;
+
         // Loop through the record
         foreach($record as $key => $value){
 
