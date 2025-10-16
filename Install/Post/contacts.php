@@ -17,8 +17,6 @@ class ContactsPostModel extends ContactsModel {
 
             // Handle specific fields
             switch($key){
-                case 'id':
-                    break;
                 case 'targetTable':
                     if(in_array($value, ['leads', 'clients', 'importers'])){
                         $Query = $this->Database->query()->table($value)->select('*')->where('id', $record['targetId'])->limit(1);
@@ -33,7 +31,6 @@ class ContactsPostModel extends ContactsModel {
                     }
                     break;
                 default:
-                    unset($record[$key]);
                     break;
             }
         }
