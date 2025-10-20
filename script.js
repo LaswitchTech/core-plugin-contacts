@@ -32,10 +32,7 @@ function process_function_hasContact(task, value, callback = null){
         if(advancedTables.includes(task.targetTable)){
 
             // Loop through the advance target tables
-            for(const column of advancedColumns){
-
-                // Get the table name for the advance target table
-                const table = advancedColumns[table];
+            for(const [column, table] of Object.entries(advancedColumns)){
 
                 // Skip if the table is the same as the task target table
                 if(table === task.targetTable) continue;
