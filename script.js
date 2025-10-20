@@ -6,7 +6,7 @@ function process_function_hasContact(task, value, callback = null){
 
         // Array of advance target tables
         const advancedTables = ['clients','leads','importers'];
-        const advancedColumns = {'clients':'client','leads':'lead','importers':'importer'};
+        const advancedColumns = {'clients':'client','leads':'lead','importers':'importer','vcards':'vcard'};
 
         // Initialize Promises Array
         const Promises = [];
