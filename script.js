@@ -6,7 +6,7 @@ function process_function_hasContact(task, value, callback = null){
 
         // Array of advance target tables
         const advancedTables = ['clients','leads','importers'];
-        const advancedColumns = {'clients':'client','leads':'lead','importers':'importer','vcards':'vcard'};
+        const advancedColumns = {'client':'clients','lead':'leads','importer':'importers','vcard':'vcards'};
 
         // Initialize Promises Array
         const Promises = [];
@@ -32,10 +32,10 @@ function process_function_hasContact(task, value, callback = null){
         if(advancedTables.includes(task.targetTable)){
 
             // Loop through the advance target tables
-            for(const table of advancedTables){
+            for(const column of advancedColumns){
 
-                // Get the column name for the advance target table
-                const column = advancedColumns[table];
+                // Get the table name for the advance target table
+                const table = advancedColumns[table];
 
                 // Skip if the table is the same as the task target table
                 if(table === task.targetTable) continue;
